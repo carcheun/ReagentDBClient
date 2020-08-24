@@ -16,12 +16,11 @@
 #endif
 
 #include <iostream>
-#include <cpprest/http_client.h>
-#include <cpprest/filestream.h>
-#include <cpprest/uri.h>
-#include <cpprest/json.h>
+#include "cpprest/cpprest/http_client.h"
+#include "cpprest/cpprest/filestream.h"
+#include "cpprest/cpprest/uri.h"
+#include "cpprest/cpprest/json.h"
 #include <string>
-
 #include "nlohmann/json.hpp"
 
 using namespace utility;
