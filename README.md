@@ -10,11 +10,13 @@ Installation
 ------------
     Place ReagentDBClient.h and ReagentDBClient.lib into your project source folder
     Under Properties > Linker > Input > Additional Dependencies ... Add $(ProjectDir)ReagentDBClient.lib
-    Place nlohamann folder from \ReagentDBClient\nlohmann into source folder
+    Place nlohamann folder from \ReagentDBClient into source folder
+    Place cpprest folder from \ReagentDBClient into source folder
+    Under Properties > C/C++ > Additional Include Directories ... Add $(ProjectDir)\cpprest
     Place zlib1.dll, libcrypto-1_1.dll, ReagentDBClient.dll into the build folder
+    
 Usage:
 
-    #include "nlohmann/json.hpp"
     #include "ReagentDBClient.h"
     
     void sampleFunction() {
