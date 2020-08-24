@@ -11,8 +11,9 @@ ReagentDBClient::ReagentDBClient(std::string server, int port) {
 	}
 
 	// setup URI's here
-	paListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("pa_list")).set_port(PORT);
-	reagentListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("reagent_list")).set_port(PORT);
+	autostainerListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("autostainer")).set_port(PORT);
+	paListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("pa")).set_port(PORT);
+	reagentListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("reagent")).set_port(PORT);
 }
 
 ReagentDBClient::~ReagentDBClient() {

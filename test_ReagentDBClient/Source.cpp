@@ -1,6 +1,9 @@
 #include "gtest/gtest.h"
 #include "ReagentDBClient.h"
+#include <Windows.h>
 #include <iostream>
+#include <future>         // std::async, std::future
+#include <thread> 
 
 const std::string SERVER = "http://localhost:8000";
 const int PORT = 8000;
@@ -31,6 +34,17 @@ int main(int argc, char **argv)
 	return RUN_ALL_TESTS();
 }
 
+njson getFromDB() {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	return rdbClient.GetPAList();
+}
+
+void getFromDB_ptr(njson * ptr) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	*ptr = rdbClient.GetPAList();
+	return;
+}
+
 TEST(HelperTests, CheckKeysExist) {
 	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
 	njson data = {
@@ -44,6 +58,30 @@ TEST(HelperTests, CheckKeysExist) {
 
 	ASSERT_EQ(data["MY_KEY_1"], 1234);
 	ASSERT_EQ(data["MY_KEY_2"], "1234");
+}
+
+TEST(DebugTest, TryAsync) {
+	std::ifstream fixture(path_to_PA_fixture);
+	njson fixture_data;
+	fixture >> fixture_data;
+	fixture.close();
+
+	std::future<njson> fut = std::async(getFromDB);
+	njson data = fut.get();
+
+	ASSERT_EQ(data.size(), fixture_data.size());
+}
+
+TEST(DebugTest, TryThread) {
+	std::ifstream fixture(path_to_PA_fixture);
+	njson fixture_data;
+	fixture >> fixture_data;
+	fixture.close();
+
+	njson data;
+	std::thread t(getFromDB_ptr, &data);
+	t.join();
+	ASSERT_EQ(data.size(), fixture_data.size());
 }
 
 // TODO: finish this test

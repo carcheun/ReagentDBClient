@@ -57,6 +57,7 @@ private:
 	utf16string SERVER;
 	int PORT;
 
+	uri_builder autostainerListPath;
 	uri_builder paListPath;
 	uri_builder reagentListPath;
 
