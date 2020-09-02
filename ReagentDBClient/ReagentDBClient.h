@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include "cpprest/cpprest/http_client.h"
+#include "cpprest/http_listener.h"
 #include "cpprest/cpprest/filestream.h"
 #include "cpprest/cpprest/uri.h"
 #include "cpprest/cpprest/json.h"
@@ -38,13 +39,17 @@ public:
 	// general helper functions
 	bool keyExists(const njson& j, const std::string& key);
 
+	// Generic GET/POST functions
+	njson GetGeneric(std::vector<std::string> paths);
+	njson PostGeneric(std::vector<std::string> paths, njson data);
+
 	// PA api functions
-	int GetPAListAsString();
 	njson GetPAList();
 	njson GetPAList(std::string catalog);
 	njson AddPA(njson jsonObj);
 	njson PutPA(njson jsonObj, std::string catalog);
 	int DeletePA(std::string);
+
 	// TODO: reagents
 	int GetReagents();
 	int AddReagent();

@@ -17,6 +17,7 @@ const int PORT = 8000;
  */
 
 std::string path_to_PA_fixture;
+std::string path_to_PA_delta_fixture;
 
 int main(int argc, char **argv)
 {
@@ -29,6 +30,11 @@ int main(int argc, char **argv)
 
 	if (argc > 1) {
 		path_to_PA_fixture = argv[1];
+		path_to_PA_delta_fixture = argv[2];
+	}
+	else {
+		std::cout << "test_ReagentDBClient [pa_fixture] [pa_delta_fixture]";
+		return 0;
 	}
 
 	return RUN_ALL_TESTS();
@@ -44,6 +50,47 @@ void getFromDB_ptr(njson * ptr) {
 	*ptr = rdbClient.GetPAList();
 	return;
 }
+
+TEST(GenericsTest, SendDeltaTable) {
+	// send json with changes to server
+	// server implements
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	std::ifstream fixture(path_to_PA_delta_fixture);
+	njson fixture_data;
+	fixture >> fixture_data;
+	fixture.close();
+
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("pa");
+	paths.push_back("sync_request");
+
+	for (auto data : fixture_data) {
+		data["fields"]["autostainer_sn"] = "SN12345";
+		rdbClient.PostGeneric(paths, data["fields"]);
+		// TODO: add assertions lol
+	}
+}
+
+
+TEST(GenericsTest, RequestDeltaTable) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("pa");
+	paths.push_back("recieve_sync");
+
+	njson req;
+	req["autostainer_sn"] = "SN12346";
+	req["last_sync"] = "2020-08-12T15:09:29Z";
+
+	njson data = rdbClient.PostGeneric(paths, req);
+
+	std::cout << data.dump() << std::endl;
+}
+
 
 TEST(HelperTests, CheckKeysExist) {
 	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
@@ -96,7 +143,6 @@ TEST(PATests, ReturnsListOfPAs) {
 	njson data = rdbClient.GetPAList();
 
 	ASSERT_EQ(data.size(), fixture_data.size());
-
 	int i = 0;
 	for (auto d : data) {
 		// mass ez compare
@@ -108,9 +154,7 @@ TEST(PATests, ReturnsListOfPAs) {
 		EXPECT_EQ(fixture_data[i]["fields"]["incub"], d["incub"]);
 		EXPECT_EQ(fixture_data[i]["fields"]["ar"], d["ar"]);
 		EXPECT_EQ(fixture_data[i]["fields"]["description"], d["description"]);
-		EXPECT_EQ(fixture_data[i]["fields"]["factory"], d["factory"]);
 		EXPECT_EQ(fixture_data[i]["fields"]["date"], d["date"]);
-		EXPECT_EQ(fixture_data[i]["fields"]["time"], d["time"]);
 		EXPECT_EQ(fixture_data[i]["fields"]["is_factory"], d["is_factory"]);
 		++i;
 	}
@@ -130,7 +174,6 @@ TEST(PATests, ReturnSinglePA) {
 	EXPECT_EQ(data["incub"], 60);
 	EXPECT_EQ(data["ar"], "Low PH");
 	EXPECT_EQ(data["description"], "Dummy Data");
-	EXPECT_EQ(data["factory"], 1);
 	EXPECT_EQ(data["is_factory"], true);
 }
 
@@ -165,7 +208,6 @@ TEST(PATests, AddSinglePA) {
 	EXPECT_EQ(retData["incub"], incub);
 	EXPECT_EQ(retData["ar"], ar);
 	EXPECT_EQ(retData["incub"], 60);
-	EXPECT_EQ(retData["factory"], factory);
 }
 
 TEST(PATests, UpdateSinglePA) {
@@ -173,7 +215,6 @@ TEST(PATests, UpdateSinglePA) {
 	std::string cat = "CYN-1014";
 	int incub = 20;
 	std::string ar = "High PH";
-	int factory = 1;
 	std::string description = "PA from test_ReagentDBClient";
 
 	njson data = {
@@ -181,7 +222,6 @@ TEST(PATests, UpdateSinglePA) {
 		{"catalog", cat},
 		{"incub", incub},
 		{"ar", ar},
-		{"factory", factory},
 		{"description", description}
 	};
 
@@ -201,7 +241,6 @@ TEST(PATests, UpdateSinglePA) {
 	EXPECT_EQ(retData["catalog"], cat);
 	EXPECT_EQ(retData["incub"], incub);
 	EXPECT_EQ(retData["ar"], ar);
-	EXPECT_EQ(retData["factory"], factory);
 	EXPECT_EQ(retData["description"], description);
 }
 
@@ -211,7 +250,6 @@ TEST(PATests, UpdateSinglePACatalogNumber) {
 	std::string cat = "CYN-1014";
 	int incub = 20;
 	std::string ar = "High PH";
-	int factory = 1;
 	std::string description = "PA from test_ReagentDBClient";
 
 	njson data = {
@@ -219,7 +257,6 @@ TEST(PATests, UpdateSinglePACatalogNumber) {
 		{"catalog", newCat},
 		{"incub", incub},
 		{"ar", ar},
-		{"factory", factory},
 		{"description", description}
 	};
 
@@ -240,7 +277,6 @@ TEST(PATests, UpdateSinglePACatalogNumber) {
 	EXPECT_EQ(retData["catalog"], newCat);
 	EXPECT_EQ(retData["incub"], incub);
 	EXPECT_EQ(retData["ar"], ar);
-	EXPECT_EQ(retData["factory"], factory);
 }
 
 TEST(PATests, DeleteSinglePA) {
