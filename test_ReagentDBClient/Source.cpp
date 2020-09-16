@@ -6,8 +6,6 @@
 #include <thread> 
 
 const std::string SERVER = "http://localhost:8000";
-const int PORT = 8000;
-
 /**
  Note: In order to run these tests on the server, it is best to run
  the server in as a test server, where it will create it's own mini
@@ -41,20 +39,73 @@ int main(int argc, char **argv)
 }
 
 njson getFromDB() {
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	return rdbClient.GetPAList();
 }
 
 void getFromDB_ptr(njson * ptr) {
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	*ptr = rdbClient.GetPAList();
 	return;
 }
 
+TEST(SyncTest, CheckForPAUpdates) {
+	// check if there are any updates for the client
+	// settings.ini records latest timestamp sync
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson client_data;
+	client_data["autostainer_sn"] = "SN12345";
+	client_data["last_sync"] = "200909T152923";		// 2020-09-09T15:29:23
+	
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("pa");
+	paths.push_back("database_to_client_sync");
+
+	njson updates = rdbClient.PostGeneric(paths, client_data);
+
+	std::cout << updates.dump() << std::endl;
+}
+
+TEST(SyncTest, SendChangeLog) {
+	// 
+}
+
+TEST(GenericsTest, SendInitialSync) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson data_arr = njson::array();
+
+	for (int i = 0; i < 5; i++) {
+		njson data;
+		data["fullname"] = "hello" + std::to_string(i);
+		data["source"] = "sauce" + std::to_string(i);
+		data["catalog"] = "CYN-000" + std::to_string(i);
+		data["alias"] = "my alias";
+		data["volume"] = 1000;
+		data["incub"] = 20;
+		data["ar"] = "NO";
+		data["description"] = "hello" + std::to_string(i);
+		data["date"] = "200918T1529";
+		data["factory"] = 0;
+		data_arr.push_back(data);
+	}
+
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("pa");
+	paths.push_back("initial_sync");
+
+	njson missing_data = rdbClient.PostGeneric(paths, data_arr);
+	std::cout << missing_data.dump() << std::endl;
+}
+
+
 TEST(GenericsTest, SendDeltaTable) {
 	// send json with changes to server
 	// server implements
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	std::ifstream fixture(path_to_PA_delta_fixture);
 	njson fixture_data;
 	fixture >> fixture_data;
@@ -75,7 +126,7 @@ TEST(GenericsTest, SendDeltaTable) {
 
 
 TEST(GenericsTest, RequestDeltaTable) {
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	std::vector<std::string> paths;
 	paths.push_back("reagents");
 	paths.push_back("api");
@@ -93,7 +144,7 @@ TEST(GenericsTest, RequestDeltaTable) {
 
 
 TEST(HelperTests, CheckKeysExist) {
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	njson data = {
 		{"MY_KEY_1", 1234},
 		{"MY_KEY_2", "1234"}
@@ -139,7 +190,7 @@ TEST(PATests, ReturnsListOfPAs) {
 	fixture >> fixture_data;
 	fixture.close();
 
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	njson data = rdbClient.GetPAList();
 
 	ASSERT_EQ(data.size(), fixture_data.size());
@@ -161,7 +212,7 @@ TEST(PATests, ReturnsListOfPAs) {
 }
 
 TEST(PATests, ReturnSinglePA) {
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 
 	std::string catalog = "MAB-0662";
 	njson data = rdbClient.GetPAList(catalog);
@@ -192,7 +243,7 @@ TEST(PATests, AddSinglePA) {
 		{"factory", factory}
 	};
 
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	njson retData = rdbClient.AddPA(data);
 
 	// make sure _error key does not exists
@@ -225,7 +276,7 @@ TEST(PATests, UpdateSinglePA) {
 		{"description", description}
 	};
 
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	rdbClient.PutPA(data, cat);
 	njson retData = rdbClient.GetPAList(cat);
 
@@ -260,7 +311,7 @@ TEST(PATests, UpdateSinglePACatalogNumber) {
 		{"description", description}
 	};
 
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	rdbClient.PutPA(data, cat);
 
 	njson retData = rdbClient.GetPAList(newCat);
@@ -282,7 +333,7 @@ TEST(PATests, UpdateSinglePACatalogNumber) {
 TEST(PATests, DeleteSinglePA) {
 	std::string cat = "CYN-9999";
 
-	ReagentDBClient rdbClient = ReagentDBClient(SERVER, PORT);
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	int statusCode = rdbClient.DeletePA(cat);
 
 	EXPECT_EQ(statusCode, 204);

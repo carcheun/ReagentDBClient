@@ -33,7 +33,7 @@ using njson = nlohmann::json;
 class REAGENTDBCLIENT_API ReagentDBClient
 {
 public:
-	ReagentDBClient(std::string server, int port=-1);
+	ReagentDBClient(std::string server);
 	virtual ~ReagentDBClient();
 
 	// general helper functions
@@ -59,7 +59,6 @@ public:
 
 private:
 	utf16string SERVER;
-	int PORT;
 
 	uri_builder autostainerListPath;
 	uri_builder paListPath;

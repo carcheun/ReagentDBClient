@@ -4,16 +4,12 @@
 #include "stdafx.h"
 #include "ReagentDBClient.h"
 
-ReagentDBClient::ReagentDBClient(std::string server, int port) {
+ReagentDBClient::ReagentDBClient(std::string server) {
 	SERVER = conversions::to_utf16string(server);
-	if (port > -1) {
-		PORT = port;
-	}
-
 	// setup URI's here
-	autostainerListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("autostainer")).set_port(PORT);
-	paListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("pa")).set_port(PORT);
-	reagentListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("reagent")).set_port(PORT);
+	autostainerListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("autostainer"));
+	paListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("pa"));
+	reagentListPath = uri_builder(U("reagents")).append_path(U("api")).append(U("reagent"));
 }
 
 ReagentDBClient::~ReagentDBClient() {
@@ -26,7 +22,6 @@ bool ReagentDBClient::keyExists(const njson& j, const std::string& key) {
 
 uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> paths) {
 	uri_builder uri_b = uri_builder();
-	uri_b.set_port(PORT);
 	for (auto i : paths) {
 		uri_b.append_path(conversions::to_utf16string(i));
 	}
@@ -297,7 +292,10 @@ int ReagentDBClient::DeletePA(std::string catalog) {
 		return status_code;
 	}
 	catch (const std::exception &e) {
-		return std::stoi(e.what());
+		njson err = {
+			{"_error", e.what()},
+		};
+		return err;
 	}
 }
 
