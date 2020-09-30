@@ -22,6 +22,7 @@
 #include "cpprest/cpprest/uri.h"
 #include "cpprest/cpprest/json.h"
 #include <string>
+#include <atlstr.h>
 #include "nlohmann/json.hpp"
 
 using namespace utility;
@@ -48,21 +49,27 @@ public:
 	njson GetPAList(std::string catalog);
 	njson AddPA(njson jsonObj);
 	njson PutPA(njson jsonObj, std::string catalog);
-	int DeletePA(std::string);
+	njson DeletePA(std::string);
+	njson DeleteMultiplePA(njson jsonObj);
+	njson ClientToDatabaseSync(njson jsonObj);
+
 
 	// TODO: reagents
 	int GetReagents();
-	int AddReagent();
-	int UpdateReagent();
+	njson AddReagent(njson reagent);
+	njson DecreaseReagentVolume(CString reagentSN, int decVol);
 	int DeleteReagent();
 	int TransferReagent();
+
+	// helper functions
+	void GenerateServerCompatiableTimestamp(struct tm *now, char *buf, int sizeBuf);
 
 private:
 	utf16string SERVER;
 
 	uri_builder autostainerListPath;
 	uri_builder paListPath;
-	uri_builder reagentListPath;
+	uri_builder reagentPath;
 
 	uri_builder build_uri_from_vector(std::vector<std::string> paths);
 };
