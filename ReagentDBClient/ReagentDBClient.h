@@ -43,6 +43,7 @@ public:
 	// Generic GET/POST functions
 	njson GetGeneric(std::vector<std::string> paths);
 	njson PostGeneric(std::vector<std::string> paths, njson data);
+	njson CUDRequest(std::string endpoint, method mtd, std::string PID, njson data);
 
 	// PA api functions
 	njson GetPAList();
@@ -51,24 +52,28 @@ public:
 	njson PutPA(njson jsonObj, std::string catalog);
 	njson DeletePA(std::string);
 	njson DeleteMultiplePA(njson jsonObj);
-	njson ClientToDatabaseSync(njson jsonObj);
+	njson ClientToDatabaseSync(njson jsonObj, std::string endpoint);
 
 
 	// TODO: reagents
 	int GetReagents();
 	njson AddReagent(njson reagent);
-	njson DecreaseReagentVolume(CString reagentSN, int decVol);
-	int DeleteReagent();
-	int TransferReagent();
+	njson DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol);
+	njson DeleteReagent(CString reagentSN);
 
 	// helper functions
 	void GenerateServerCompatiableTimestamp(struct tm *now, char *buf, int sizeBuf);
+	std::string ConvertClientDateToServerDateField(int date);
+	std::string ConvertClientTimeToServerTimeField(int time);
+	int ConvertServerDateFieldToClientDate(std::string date);
+	void ConvertServerDateTimeFieldToClientDateTime(int &date, int &time, std::string dateTime);
+
 
 private:
 	utf16string SERVER;
 
 	uri_builder autostainerListPath;
-	uri_builder paListPath;
+	uri_builder paPath;
 	uri_builder reagentPath;
 
 	uri_builder build_uri_from_vector(std::vector<std::string> paths);

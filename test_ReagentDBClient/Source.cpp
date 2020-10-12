@@ -19,6 +19,13 @@ std::string path_to_PA_delta_fixture;
 
 int main(int argc, char **argv)
 {
+	njson data;
+	data["autostainer_sn"] = "SN12345";
+
+	ReagentDBClient rdb = ReagentDBClient(SERVER);
+	rdb.CUDRequest("REAGENT", methods::POST, "", data);
+
+	return 0;
 	::testing::InitGoogleTest(&argc, argv);
 
 	// expect input file of database fixtures
