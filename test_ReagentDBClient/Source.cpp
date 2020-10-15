@@ -19,11 +19,8 @@ std::string path_to_PA_delta_fixture;
 
 int main(int argc, char **argv)
 {
-	njson data;
-	data["autostainer_sn"] = "SN12345";
-
 	ReagentDBClient rdb = ReagentDBClient(SERVER);
-	rdb.CUDRequest("REAGENT", methods::POST, "", data);
+	njson ret = rdb.DecreaseReagentVolume("H1908280004", "SN12345", 500);
 
 	return 0;
 	::testing::InitGoogleTest(&argc, argv);

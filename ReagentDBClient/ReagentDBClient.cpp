@@ -78,7 +78,8 @@ void ReagentDBClient::ConvertServerDateTimeFieldToClientDateTime(int &date, int 
 	return;
 }
 
-void ReagentDBClient::GenerateServerCompatiableTimestamp(struct tm *now, char *buf, int sizeBuf) {
+void ReagentDBClient::GenerateServerCompatiableTimestamp(char *buf, int sizeBuf) {
+	struct tm *now;
 	time_t t;
 	time(&t);
 	now = localtime(&t);
@@ -237,8 +238,8 @@ njson ReagentDBClient::DecreaseReagentVolume(std::string reagentSN, std::string 
 		}
 		return response.extract_json();
 	})
-		// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
+	// Get the data field and serialize, then use nlohmann/json to parse
+	.then([&](json::value jsonObject) {
 		ret = njson::parse(jsonObject.serialize());
 		return;
 	});

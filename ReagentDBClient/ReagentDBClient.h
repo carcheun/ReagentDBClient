@@ -56,13 +56,12 @@ public:
 
 
 	// TODO: reagents
-	int GetReagents();
 	njson AddReagent(njson reagent);
 	njson DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol);
 	njson DeleteReagent(CString reagentSN);
 
 	// helper functions
-	void GenerateServerCompatiableTimestamp(struct tm *now, char *buf, int sizeBuf);
+	void GenerateServerCompatiableTimestamp(char *buf, int sizeBuf);
 	std::string ConvertClientDateToServerDateField(int date);
 	std::string ConvertClientTimeToServerTimeField(int time);
 	int ConvertServerDateFieldToClientDate(std::string date);
