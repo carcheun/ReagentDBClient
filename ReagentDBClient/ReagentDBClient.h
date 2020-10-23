@@ -16,9 +16,9 @@
 #endif
 
 #include <iostream>
-#include "cpprest/cpprest/http_client.h"
+#include "cpprest/http_client.h"
 #include "cpprest/http_listener.h"
-#include "cpprest/cpprest/filestream.h"
+#include "cpprest/filestream.h"
 #include "cpprest/cpprest/uri.h"
 #include "cpprest/cpprest/json.h"
 #include <string>
@@ -43,6 +43,7 @@ public:
 	// Generic GET/POST functions
 	njson GetGeneric(std::vector<std::string> paths);
 	njson PostGeneric(std::vector<std::string> paths, njson data);
+	njson GetRequest(std::string endpoint, std::string PID);
 	njson CUDRequest(std::string endpoint, method mtd, std::string PID, njson data);
 
 	// PA api functions

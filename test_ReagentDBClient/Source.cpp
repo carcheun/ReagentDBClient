@@ -5,7 +5,8 @@
 #include <future>         // std::async, std::future
 #include <thread> 
 
-const std::string SERVER = "http://localhost:8000";
+//const std::string SERVER = "http://localhost:8000";
+const std::string SERVER = "http://xiaomingdesktop/";
 /**
  Note: In order to run these tests on the server, it is best to run
  the server in as a test server, where it will create it's own mini
@@ -19,12 +20,6 @@ std::string path_to_PA_delta_fixture;
 
 int main(int argc, char **argv)
 {
-	ReagentDBClient rdb = ReagentDBClient(SERVER);
-	njson ret = rdb.DecreaseReagentVolume("H1908280004", "SN12345", 500);
-
-	return 0;
-	::testing::InitGoogleTest(&argc, argv);
-
 	// expect input file of database fixtures
 	for (int i = 1; i < argc; ++i) {
 		printf("arg %2d = %s\n", i, argv[i]);

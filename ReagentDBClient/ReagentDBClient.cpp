@@ -119,6 +119,50 @@ uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> path
 	return uri_b;
 }
 
+njson ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
+	njson ret;
+	uri_builder uriPath;
+	if (endpoint.compare("REAGENT") == 0) {
+		// set the path for reagents
+		uriPath = reagentPath;
+	}
+	else if (endpoint.compare("PA") == 0) {
+		// set paths for PA
+		uriPath = paPath;
+	}
+	else {
+		ret["_error"] = "Invalid endpoint!";
+		return ret;
+	}
+
+	uriPath.append_path(conversions::to_utf16string(PID));
+
+	auto requestJson = http_client(SERVER)
+		.request(methods::GET, uriPath.to_string() + U("/"))
+		.then([](http_response response) {
+		if (response.status_code() != 200) {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		return response.extract_json();
+	})
+	.then([&](json::value jsonObject) {
+		ret = njson::parse(jsonObject.serialize());
+		return;
+	});
+	try {
+		requestJson.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		njson err = {
+			{"_error", e.what()},
+		};
+		return err;
+	}
+
+	return -1;
+}
+
 njson ReagentDBClient::CUDRequest(std::string endpoint, method mtd, std::string PID, njson data) {
 	// Read the endpoint: REAGENT OR PA
 	njson ret;
@@ -296,11 +340,8 @@ njson ReagentDBClient::DeleteReagent(CString reagentSN) {
 
 njson ReagentDBClient::GetPAList() {
 	njson ret;
-	int resp = -1;
-
 	auto requestJson = http_client(SERVER)
 		.request(methods::GET, paPath.to_string() + U("/"))
-
 		// Get the response.
 		.then([](http_response response) {
 		// Check the status code.
@@ -512,8 +553,6 @@ njson ReagentDBClient::PostGeneric(std::vector<std::string> paths, njson data) {
 njson ReagentDBClient::GetGeneric(std::vector<std::string> paths) {
 	uri_builder uri_build = build_uri_from_vector(paths);
 	njson ret;
-	int resp = -1;
-
 	auto requestJson = http_client(SERVER)
 		.request(methods::GET, uri_build.to_string() + U("/"))
 		.then([](http_response response) {
