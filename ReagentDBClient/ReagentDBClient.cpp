@@ -94,10 +94,20 @@ std::string ReagentDBClient::ConvertClientTimeToServerTimeField(int time) {
 	std::string ret = std::to_string(time);
 
 	// check length
-	if (ret.length() < 4) {
+	if (ret.length() < 2) {
+		// 7 = 
+		ret = "00000" + ret;
+	}
+	else if (ret.length() < 3) {
+		// 49
+		ret = "0000" + ret;
+	}
+	else if (ret.length() < 4) {
+		// 750
 		ret = "0" + ret + "00";
 	}
 	else if (ret.length() < 5) {
+		// 1250
 		ret = ret + "00";
 	}
 
