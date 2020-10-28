@@ -129,6 +129,41 @@ uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> path
 	return uri_b;
 }
 
+njson ReagentDBClient::GetPAByAlias(njson data) {
+	njson ret;
+	uri_builder uriPath = paPath;
+	uriPath.append_path(conversions::to_utf16string("alias"));
+
+	auto postJson = pplx::create_task([&]() {
+		return http_client(SERVER)
+			.request(methods::POST,
+				uriPath.to_string() + U("/"),
+				conversions::to_utf16string(data.dump()), U("application/json"));
+	})
+	.then([](http_response response) {
+		if (response.status_code() != 200) {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		return response.extract_json();
+	})
+	.then([&](json::value jsonObject) {
+		ret = njson::parse(jsonObject.serialize());
+		return;
+	});
+
+	// Wait for the concurrent tasks to finish.
+	try {
+		postJson.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		njson err = {
+			{"_error", e.what()}
+		};
+		return err;
+	}
+}
+
 njson ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
 	njson ret;
 	uri_builder uriPath;

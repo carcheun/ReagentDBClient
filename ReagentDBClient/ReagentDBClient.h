@@ -49,6 +49,7 @@ public:
 	// PA api functions
 	njson GetPAList();
 	njson GetPAList(std::string catalog);
+	njson GetPAByAlias(njson jsonObj);
 	njson AddPA(njson jsonObj);
 	njson PutPA(njson jsonObj, std::string catalog);
 	njson DeletePA(std::string);
