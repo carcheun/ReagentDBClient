@@ -41,7 +41,8 @@ public:
 	bool keyExists(const njson& j, const std::string& key);
 
 	// Generic GET/POST functions
-	njson GetGeneric(std::vector<std::string> paths);
+	njson GetGeneric(std::vector<std::string> paths,
+		const std::map<std::string, std::string>& urlParams = map_type());
 	njson PostGeneric(std::vector<std::string> paths, njson data);
 	njson GetRequest(std::string endpoint, std::string PID);
 	njson CUDRequest(std::string endpoint, method mtd, std::string PID, njson data);
@@ -71,6 +72,8 @@ public:
 
 
 private:
+	typedef std::map<std::string, std::string> map_type;
+
 	utf16string SERVER;
 
 	uri_builder autostainerListPath;

@@ -110,10 +110,18 @@ std::string ReagentDBClient::ConvertClientTimeToServerTimeField(int time) {
 		// 1250
 		ret = ret + "00";
 	}
+	else if (ret.length() < 6) {
+		ret = "0" + ret;
+	}
 
-	ret.insert(2, ":");
-	ret.insert(5, ":");
-
+	if (ret.length() == 6) {
+		ret.insert(2, ":");
+		ret.insert(5, ":");
+	}
+	else {
+		// reach some kind of invalid timestamp...
+		ret = "00:00:00";
+	}
 	return ret;
 }
 
@@ -595,11 +603,17 @@ njson ReagentDBClient::PostGeneric(std::vector<std::string> paths, njson data) {
 	return 1;
 }
 
-njson ReagentDBClient::GetGeneric(std::vector<std::string> paths) {
+njson ReagentDBClient::GetGeneric(std::vector<std::string> paths, 
+	const std::map<std::string, std::string>& urlParams) {
 	uri_builder uri_build = build_uri_from_vector(paths);
 	njson ret;
+	for (auto const& x : urlParams) {
+		uri_build.append_query(conversions::to_utf16string(x.first),
+			conversions::to_utf16string(x.second));
+	}
+
 	auto requestJson = http_client(SERVER)
-		.request(methods::GET, uri_build.to_string() + U("/"))
+		.request(methods::GET, urlParams.empty() ? uri_build.to_string() + U("/") : uri_build.to_string())
 		.then([](http_response response) {
 		if (response.status_code() != 200) {
 			throw std::runtime_error(std::to_string(response.status_code()));
@@ -610,6 +624,7 @@ njson ReagentDBClient::GetGeneric(std::vector<std::string> paths) {
 		ret = njson::parse(jsonObject.serialize());
 		return;
 	});
+
 	try {
 		requestJson.wait();
 		return ret;
@@ -621,7 +636,7 @@ njson ReagentDBClient::GetGeneric(std::vector<std::string> paths) {
 		return err;
 	}
 
-	return -1;
+	return ret;
 }
 
 njson ReagentDBClient::DeletePA(std::string catalog) {
