@@ -41,21 +41,32 @@ public:
 	bool keyExists(const njson& j, const std::string& key);
 
 	// Generic GET/POST functions
+	//
 	njson GetGeneric(std::vector<std::string> paths,
 		const std::map<std::string, std::string>& urlParams = map_type());
+	//
 	njson PostGeneric(std::vector<std::string> paths, njson data);
+	
 	njson GetRequest(std::string endpoint, std::string PID);
+	//
 	njson CUDRequest(std::string endpoint, method mtd, std::string PID, njson data);
 
 	// PA api functions
 	njson GetPAList();
 	njson GetPAList(std::string catalog);
-	njson GetPAByAlias(njson jsonObj);
+	njson GetPAByAlias(std::wstring alias);
 	njson AddPA(njson jsonObj);
 	njson PutPA(njson jsonObj, std::string catalog);
 	njson DeletePA(std::string);
 	njson DeleteMultiplePA(njson jsonObj);
 	njson ClientToDatabaseSync(njson jsonObj, std::string endpoint);
+
+	json::value JAddReagent(json::value jsonObj);
+	json::value JPostGeneric(std::vector<std::string> paths, json::value jsonObj);
+	json::value JGetGeneric(std::vector<std::string> paths,
+		const std::map<std::string, std::string>& urlParams = map_type());
+	json::value JCUDRequest(std::string endpoint, method mtd, std::string PID, json::value data);
+
 
 
 	// TODO: reagents

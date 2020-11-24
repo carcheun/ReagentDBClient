@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+﻿#include "gtest/gtest.h"
 #include "ReagentDBClient.h"
 #include <Windows.h>
 #include <iostream>
@@ -6,7 +6,7 @@
 #include <thread> 
 
 //const std::string SERVER = "http://localhost:8000";
-const std::string SERVER = "http://xiaomingdesktop/";
+const std::string SERVER = "http://xiaomingdesktops/";
 /**
  Note: In order to run these tests on the server, it is best to run
  the server in as a test server, where it will create it's own mini
@@ -20,6 +20,23 @@ std::string path_to_PA_delta_fixture;
 
 int main(int argc, char **argv)
 {
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("pa");
+	paths.push_back("Rb Gene");
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	std::wstring alias = U("¦Â-Tubulin-¢ó");
+
+	//njson ret = rdbClient.GetPAByAlias(alias);
+	//std::cout << ret.dump();
+
+	json::value v = rdbClient.JGetGeneric(paths);
+
+	std::wcout << v.serialize();
+
+
+	return 0;
 	// expect input file of database fixtures
 	for (int i = 1; i < argc; ++i) {
 		printf("arg %2d = %s\n", i, argv[i]);

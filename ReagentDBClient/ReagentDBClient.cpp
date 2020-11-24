@@ -132,21 +132,20 @@ bool ReagentDBClient::keyExists(const njson& j, const std::string& key) {
 uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> paths) {
 	uri_builder uri_b = uri_builder();
 	for (auto i : paths) {
-		uri_b.append_path(conversions::to_utf16string(i));
+		uri_b.append_path(web::uri::encode_data_string(conversions::to_utf16string(i)));
 	}
 	return uri_b;
 }
 
-njson ReagentDBClient::GetPAByAlias(njson data) {
+njson ReagentDBClient::GetPAByAlias(std::wstring alias) {
 	njson ret;
 	uri_builder uriPath = paPath;
-	uriPath.append_path(conversions::to_utf16string("alias"));
-
+	uriPath.append_path(U("alias"));
+	uriPath.append_query(U("alias"), alias);
+		
 	auto postJson = pplx::create_task([&]() {
 		return http_client(SERVER)
-			.request(methods::POST,
-				uriPath.to_string() + U("/"),
-				conversions::to_utf16string(data.dump()), U("application/json"));
+			.request(methods::POST, uriPath.to_string(), U("application/json"));
 	})
 	.then([](http_response response) {
 		if (response.status_code() != 200) {
@@ -281,6 +280,105 @@ njson ReagentDBClient::CUDRequest(std::string endpoint, method mtd, std::string 
 		return err;
 	}
 	return ret;
+}
+
+
+
+json::value ReagentDBClient::JCUDRequest(std::string endpoint, method mtd, std::string PID, json::value data) {
+	// Read the endpoint: REAGENT OR PA
+	json::value ret;
+	uri_builder uriPath;
+	if (endpoint.compare("REAGENT") == 0) {
+		// set the path for reagents
+		uriPath = reagentPath;
+	}
+	else if (endpoint.compare("PA") == 0) {
+		// set paths for PA
+		uriPath = paPath;
+	}
+	else {
+		ret[U("_error")] = json::value::string(U("Invalid endpoint!"));
+		return ret;
+	}
+
+	// get or delete, we will need a PID
+	auto req = pplx::create_task([&]() {
+		if (!PID.empty())
+			uriPath.append_path(conversions::to_utf16string(PID));
+
+		if (mtd == methods::PUT || mtd == methods::POST) {
+			return http_client(SERVER)
+				.request(mtd, uriPath.to_string() + U("/"), data.serialize(), 
+					U("application/json"));
+		}
+		else if (mtd == methods::GET || mtd == methods::DEL) {
+			return http_client(SERVER)
+				.request(mtd, uriPath.to_string() + U("/"));
+		}
+	}).then([](http_response response) {
+		// Check the status code.
+		if (response.status_code() == 201 || response.status_code() == 200) {
+			return response.extract_json();
+		}
+		else if (response.status_code() == 204) {
+			// no content, in order for consistant parsing we'll just add some content
+			// before passing it on to our program
+			json::value output;
+			output[L"content"] = json::value::string(utility::conversions::to_utf16string("No Content"));
+			response.set_body(output);
+			return response.extract_json();
+		}
+		else {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		// Convert the response body to JSON object.
+	}).then([&](json::value jsonObject) {
+		ret = jsonObject;
+		return;
+	});
+
+
+	try {
+		req.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		return err;
+	}
+}
+
+
+
+json::value ReagentDBClient::JAddReagent(json::value jsonObj) {
+	json::value ret;
+	auto postJson = pplx::create_task([&]() {
+		return http_client(SERVER)
+			.request(methods::POST,
+				reagentPath.to_string() + U("/"),
+				jsonObj.serialize(), U("application/json"));
+	})
+	.then([](http_response response) {
+		// Check the status code.
+		if (response.status_code() != 201)
+			throw std::runtime_error(std::to_string(response.status_code()));
+		return response.extract_json();
+	})
+	.then([&](json::value jsonObject) {
+		ret = jsonObject;
+		return;
+	});
+
+	try {
+		postJson.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		return err;
+	}
 }
 
 // add a reagent
@@ -551,6 +649,53 @@ njson ReagentDBClient::PutPA(njson jsonObj, std::string catalog) {
 	return -1;
 }
 
+
+json::value ReagentDBClient::JPostGeneric(std::vector<std::string> paths, json::value jsonObj) {
+	uri_builder uri_build = build_uri_from_vector(paths);
+	json::value ret;
+
+	// use & to use the above variables, or pass them in one at a time
+	auto postJson = pplx::create_task([&]() {
+		return http_client(SERVER)
+			.request(methods::POST, uri_build.to_string() + U("/"), 
+				jsonObj.serialize(), U("application/json"));
+	})
+		.then([](http_response response) {
+		// Check the status code.
+		if (response.status_code() == 201 || response.status_code() == 200) {
+			return response.extract_json();
+		}
+		else if (response.status_code() == 204) {
+			// no content, in order for consistant parsing we'll just add some content
+			// before passing it on to our program
+			json::value output;
+			output[L"content"] = json::value::string(utility::conversions::to_utf16string("No Content"));
+			response.set_body(output);
+			return response.extract_json();
+		}
+		else {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+
+		// Convert the response body to JSON object.
+	})		// Get the data field and serialize, then use nlohmann/json to parse
+		.then([&](json::value jsonObject) {
+		ret = jsonObject;
+		return;
+	});
+
+	// Wait for the concurrent tasks to finish.
+	try {
+		postJson.wait();
+	}
+	catch (const std::exception &e) {
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		return err;
+	}
+	return ret;
+}
+
 njson ReagentDBClient::PostGeneric(std::vector<std::string> paths, njson data) {
 	uri_builder uri_build = build_uri_from_vector(paths);
 	njson ret;
@@ -638,6 +783,44 @@ njson ReagentDBClient::GetGeneric(std::vector<std::string> paths,
 
 	return ret;
 }
+
+// GET generic
+json::value ReagentDBClient::JGetGeneric(std::vector<std::string> paths,
+	const std::map<std::string, std::string>& urlParams) {
+	uri_builder uri_build = build_uri_from_vector(paths);
+	json::value ret;
+	for (auto const& x : urlParams) {
+		uri_build.append_query(conversions::to_utf16string(x.first),
+			web::uri::encode_data_string(conversions::to_utf16string(x.second)));
+	}
+	auto requestJson = http_client(SERVER)
+		.request(methods::GET, urlParams.empty() ? 
+			uri_build.to_string() + U("/") : uri_build.to_string())
+		.then([](http_response response) {
+		if (response.status_code() != 200) {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		return response.extract_json();
+	})
+		.then([&](json::value jsonObject) {
+		ret = jsonObject;
+		return;
+	});
+
+	try {
+		requestJson.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		return err;
+	}
+}
+
+
+
+
 
 njson ReagentDBClient::DeletePA(std::string catalog) {
 	uri_builder newPaListPath = paPath;
