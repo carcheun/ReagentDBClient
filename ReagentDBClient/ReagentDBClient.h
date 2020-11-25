@@ -66,6 +66,7 @@ public:
 	json::value JGetGeneric(std::vector<std::string> paths,
 		const std::map<std::string, std::string>& urlParams = map_type());
 	json::value JCUDRequest(std::string endpoint, method mtd, std::string PID, json::value data);
+	json::value ClientToDatabaseSync(json::value data, std::string endpoint);
 
 
 

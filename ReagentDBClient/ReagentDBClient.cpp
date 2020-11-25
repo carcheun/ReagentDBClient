@@ -893,6 +893,77 @@ njson ReagentDBClient::DeleteMultiplePA(njson data) {
 	}
 }
 
+json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string endpoint) {
+	json::value ret;
+	uri_builder newPaListPath;
+	if (endpoint.compare("PA") == 0) {
+		newPaListPath = paPath;
+	}
+	else if (endpoint.compare("REAGENT") == 0) {
+		newPaListPath = reagentPath;
+	}
+
+	newPaListPath.append_path(conversions::to_utf16string("client_to_database_sync"));
+	int status_code = -1;
+
+	auto postJson = pplx::create_task([&]() {
+		return http_client(SERVER)
+			.request(methods::POST,
+				newPaListPath.to_string() + U("/"),
+				data.serialize(), U("application/json"));
+	})
+		.then([&](http_response response) {
+		status_code = response.status_code();
+		if (status_code == 200 || status_code == 201) {
+			// 200 & 201 & 204 status codes are always 'good', and client
+			// can safely delete their delta log entry and will not require
+			// further modifications
+			return response.extract_json();
+		}
+		else if (status_code == 204) {
+			json::value output;
+			output[L"data"] = json::value::string(utility::conversions::to_utf16string("no content"));
+			response.set_body(output);
+			return response.extract_json();
+		}
+		else if (status_code == 400) {
+			// bad request, client delta log has some request error
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		else if (status_code == 404) {
+			// not found, if the action was to update something, this implies that
+			// at some point the server has deleted the item. Client should remove
+			// item from local DB
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+		else if (status_code == 409) {
+			// conflict, generally means that item already existed when creating,
+			// or that an update attempt is older than the current time stamp.
+			// client will recieve the server copy and update themselves accordingly ?
+			return response.extract_json();
+		}
+		else {
+			throw std::runtime_error(std::to_string(response.status_code()));
+		}
+	})
+		.then([&](json::value jsonObject) {
+		ret = jsonObject;
+		ret[U("status_code")] = status_code;
+		return;
+	});
+
+	// Wait for the concurrent tasks to finish.
+	try {
+		postJson.wait();
+		return ret;
+	}
+	catch (const std::exception &e) {
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		return err;
+	}
+}
+
 njson ReagentDBClient::ClientToDatabaseSync(njson data, std::string endpoint) {
 	// send my data to the URL
 	// await response.
