@@ -1,0 +1,22 @@
+[
+   {
+      "model":"reagents.autostainerstation",
+      "pk":"1",
+      "fields":{
+         "name":"test autostainer",
+		 "autostainer_sn":"autostainer1",
+         "latest_sync_time_PA":"2020-12-28T19:52:44Z",
+         "latest_sync_time_Reagent":"2020-12-28T19:52:47Z"
+      }
+   },
+   {
+      "model":"reagents.autostainerstation",
+      "pk":"2",
+      "fields":{
+         "name":"test autostainer 2",
+		 "autostainer_sn":"autostainer2",
+         "latest_sync_time_PA":"2020-12-02T19:53:04Z",
+         "latest_sync_time_Reagent":"2020-12-04T19:53:05Z"
+      }
+   }
+]

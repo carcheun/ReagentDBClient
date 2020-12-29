@@ -818,9 +818,6 @@ json::value ReagentDBClient::JGetGeneric(std::vector<std::string> paths,
 }
 
 
-
-
-
 njson ReagentDBClient::DeletePA(std::string catalog) {
 	uri_builder newPaListPath = paPath;
 	newPaListPath.append_path(conversions::to_utf16string(catalog));

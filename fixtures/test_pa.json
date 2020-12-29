@@ -1,0 +1,50 @@
+[
+   {
+      "model":"reagents.pa",
+      "pk":"1",
+      "fields":{
+		 "catalog":"PA001",
+         "fullname":"test PA 1",
+         "alias":"PA 1",
+         "source":"admin",
+         "volume":1500,
+         "incub":15,
+         "ar":"NO",
+         "description":"test PA",
+         "is_factory":true,
+         "date":"2020-12-28T19:53:22-08:00"
+      }
+   },
+   {
+      "model":"reagents.pa",
+      "pk":"2",
+      "fields":{
+		 "catalog":"PA002",
+         "fullname":"test PA 2",
+         "alias":"PA 2",
+         "source":"admin",
+         "volume":3000,
+         "incub":45,
+         "ar":"Low PH",
+         "description":"",
+         "is_factory":true,
+         "date":"2020-12-01T21:36:58-08:00"
+      }
+   },
+   {
+      "model":"reagents.pa",
+      "pk":"3",
+      "fields":{
+		 "catalog":"PA003",
+         "fullname":"Test PA 3",
+         "alias":"PA3",
+         "source":"localhost:8000",
+         "volume":2500,
+         "incub":30,
+         "ar":"High PH",
+         "description":"",
+         "is_factory":true,
+         "date":"2020-08-13T20:37:13-07:00"
+      }
+   }
+]
