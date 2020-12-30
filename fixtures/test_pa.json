@@ -46,5 +46,21 @@
          "is_factory":true,
          "date":"2020-08-13T20:37:13-07:00"
       }
+   },
+   {
+ 	  "model":"reagents.pa",
+	  "pk":"4",
+	  "fields":{
+	 	 "fullname": "Test PA 4",
+ 		 "alias": "PA4",
+		 "source": "delta test",
+		 "catalog": "PA004",
+		 "volume": 2500,
+		 "incub": 45,
+		 "ar": "Low PH",
+		 "description": "delta test PA add entry",
+		 "date": "2020-12-28T16:24:00-08:00",
+		 "is_factory": true
+      }
    }
 ]

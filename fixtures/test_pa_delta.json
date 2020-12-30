@@ -1,0 +1,56 @@
+[
+	{
+	"model":"reagents.PADelta",
+	"pk":"1",
+	"fields": {
+		"fullname": "Test PA 4",
+		"alias": "PA4",
+		"source": "delta test",
+		"catalog": "PA0010",
+		"volume": 2500,
+		"incub": 45,
+		"ar": "Low PH",
+		"description": "delta test PA add entry",
+		"is_factory": true,
+		"operation": "CREATE",
+		"date": "2020-10-28T16:24:00-08:00",
+		"autostainer_sn": null
+		}
+    },
+	{
+	"model":"reagents.PADelta",
+	"pk":"2",
+	"fields": {
+		"fullname": "Test PA 4",
+		"alias": "PA4",
+		"source": "delta test",
+		"catalog": "PA004",
+		"volume": 2500,
+		"incub": 45,
+		"ar": "Low PH",
+		"description": "delta test PA add entry",
+		"is_factory": true,
+		"operation": "CREATE",
+		"date": "2020-12-28T16:24:00-08:00",
+		"autostainer_sn": null
+		}
+    },
+	{
+	"model":"reagents.PADelta",
+	"pk":"3",
+	"fields": {
+        "fullname": "",
+        "alias": "",
+        "source": "",
+        "catalog": "DELETEPA001",
+        "volume": 0,
+        "incub": 15,
+        "ar": "",
+        "description": "",
+        "is_factory": false,
+        "operation": "CREATE",
+        "date": "2020-12-28T16:26:03.969797-08:00",
+        "autostainer_sn": null
+		}
+    }
+]

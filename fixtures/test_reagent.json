@@ -124,5 +124,26 @@
          "autostainer_sn":"autostainer2",
          "in_use":false
       }
-   }
+   },
+   {
+	"model":"reagents.reagent",
+	"pk":"7",
+	"fields":{
+		"reag_name": "test reagent 7",
+		"reagent_sn": "REAG007",
+		"autostainer_sn": "autostainer1",
+		"catalog": "PA002",
+		"size": "S",
+		"log": "",
+		"vol": 3000,
+		"vol_cur": 3000,
+		"sequence": 1,
+		"mfg_date": "2012-01-24",
+		"exp_date": "2020-12-29",
+		"date": "2020-12-28T16:16:00-08:00",
+		"factory": true,
+		"r_type": "AR",
+		"in_use": false
+		}
+	}
 ]
