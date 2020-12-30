@@ -58,7 +58,6 @@ TEST(PATests, ReturnsListOfPAs) {
 				EXPECT_EQ(fixture_data[i]["fields"]["incub"], d["incub"]);
 				EXPECT_EQ(fixture_data[i]["fields"]["ar"], d["ar"]);
 				EXPECT_EQ(fixture_data[i]["fields"]["description"], d["description"]);
-				EXPECT_EQ(fixture_data[i]["fields"]["date"], d["date"]);
 				EXPECT_EQ(fixture_data[i]["fields"]["is_factory"], d["is_factory"]);
 				data.erase(ncnt);
 				break;
@@ -141,7 +140,7 @@ TEST(PATests, UpdateSinglePA) {
 	};
 
 	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
-	rdbClient.PutPA(data, cat);
+	rdbClient.CUDRequest("PA", methods::PUT, cat, data);
 	njson retData = rdbClient.GetPAList(cat);
 
 	// make sure _error key does not exists
@@ -162,7 +161,7 @@ TEST(PATests, UpdateSinglePA) {
 		{"description", ""}
 	};
 	// change it back so test is independent
-	rdbClient.PutPA(data, cat);
+	rdbClient.CUDRequest("PA", methods::PUT, cat, data);
 }
 
 TEST(PATests, DeleteSinglePA) {
@@ -207,10 +206,39 @@ TEST(SyncTest, CheckForPAUpdates) {
 
 	njson updates = rdbClient.PostGeneric(paths, client_data);
 	// so at least 1 delta will be missing as it is too old
-	ASSERT_EQ(updates.size(), updates.size()-1);
+	// check them, they should be missing one entry dated "2020-10-28T16:24:00-08:00",
+	bool missing_entry = TRUE;
+	for (auto d : updates) {
+		if (d["date"] == "2020-10-28T16:24:00-08:00") {
+			missing_entry = FALSE;
+		}
+	}
+	ASSERT_TRUE(missing_entry);
 }
 
-TEST(SyncTest, SendChangeLog) {
+TEST(SyncTest, CheckForReagentsUpdates) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson client_data;
+	client_data["autostainer_sn"] = "autostainer2";
+	client_data["last_sync_reagent"] = "2020-12-02T11:53:04-0700";
+	std::vector<std::string> paths;
+	paths.push_back("reagents");
+	paths.push_back("api");
+	paths.push_back("reagent");
+	paths.push_back("database_to_client_sync");
+
+	njson updates = rdbClient.PostGeneric(paths, client_data);
+
+	bool missing_entry = TRUE;
+	for (auto d : updates) {
+		if (d["date"] == "2020-10-28T16:24:00-08:00") {
+			missing_entry = FALSE;
+		}
+	}
+	ASSERT_TRUE(missing_entry);
+}
+
+TEST(SyncTest, SendChangeLogPA) {
 	// some data to send
 	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	njson data;
@@ -246,7 +274,6 @@ TEST(SyncTest, SendChangeLog) {
 	rdbClient.ClientToDatabaseSync(data, "PA");
 
 	njson ret = rdbClient.GetPAList();
-	EXPECT_EQ(ret.size(), 4);
 	bool PA002 = FALSE;
 	bool PA_DELTA01 = FALSE;
 	bool DELETED_PA = TRUE;
@@ -349,25 +376,51 @@ TEST(SyncTest, SendChangeLog) {
 		{"date", "2020-12-29T21:36:58-08:00"},
 		{"operation", "UPDATE" }
 	};
-	rdbClient.ClientToDatabaseSync(data, "PA");
+	rdbClient.CUDRequest("PA", methods::PUT, "PA002", data);
 }
 
-TEST(GenericsTest, SendInitialSync) {
+TEST(SyncTest, SendChangeLogReagent) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson data;
+	data = {
+		{"autostainer_sn", "autostainer2" },
+		{"reagent_sn" , "add_delta_reag002"},
+		{"reag_name" , "test_reagentDBClient Reagent 1"},
+		{"catalog" , "PA002"},
+		{"size" , "S"},
+		{"log" , "1234"},
+		{"vol" , 3000},
+		{"vol_cur" , 5000},
+		{"sequence" , 0 },
+		{"mfg_date" , "2020-03-17"},
+		{"exp_date" , "2022-03-19" },
+		{"date" , "2021-01-11T13:49:05-08:00"},
+		{"factory" , true },
+		{"r_type" , "AR"},
+		{"operation" , "CREATE"},
+		{"executor" , NULL }
+	};
+	rdbClient.ClientToDatabaseSync(data, "REAGENT");
+
+}
+
+TEST(SyncTest, SendInitialSyncPA) {
 	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
 	njson data_arr = njson::array();
 
 	for (int i = 0; i < 5; i++) {
 		njson data;
-		data["fullname"] = "hello" + std::to_string(i);
-		data["source"] = "sauce" + std::to_string(i);
-		data["catalog"] = "CYN-000" + std::to_string(i);
-		data["alias"] = "my alias";
-		data["volume"] = 1000;
+		data["fullname"] = "initial_sync_PA_" + std::to_string(i);
+		data["source"] = "test_reagentDBClient";
+		data["catalog"] = "TEST-000" + std::to_string(i);
+		data["alias"] = "alias";
+		data["volume"] = 1000 + i;
 		data["incub"] = 20;
 		data["ar"] = "NO";
-		data["description"] = "hello" + std::to_string(i);
-		data["date"] = "200918T1529";
+		data["description"] = "";
 		data["factory"] = 0;
+		data["autostainer_sn"] = "autostainer1";
+		data["date"] = "2020-12-29T21:36:58";
 		data_arr.push_back(data);
 	}
 
@@ -377,8 +430,196 @@ TEST(GenericsTest, SendInitialSync) {
 	paths.push_back("pa");
 	paths.push_back("initial_sync");
 
+	njson all_pa = rdbClient.GetPAList();
 	njson missing_data = rdbClient.PostGeneric(paths, data_arr);
-	//std::cout << missing_data.dump() << std::endl;
-	// TODO: finish test
+	// expect that there are 5 more PA in the database
+	EXPECT_EQ(missing_data.size() - all_pa.size(), 5);
+
+	// now clean up and delete the the PA's
+	for (int i = 0; i < 5; i++) {
+		rdbClient.DeletePA("TEST-000" + std::to_string(i));
+	}
 }
 
+TEST(ReagentTest, AddReagent) {
+	njson data;
+	data["reag_name"] = "test_reagentDBClient Reagent 1";
+	data["reagent_sn"] = "add_reag001";
+	data["size"] = "S";
+	data["log"] = "1234";
+	data["vol_cur"] = 5000;
+	data["vol"] = 3000;
+	data["sequence"] = 0;
+	data["mfg_date"] = "2020-03-17";
+	data["exp_date"] = "2022-03-19";
+	data["date"] = "2020-12-29T21:49:05Z";
+	data["r_type"] = "AR";
+	data["factory"] = true;
+	data["catalog"] = "PA002";
+	data["autostainer_sn"] = "autostainer2";
+	data["in_use"] = false;
+
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	rdbClient.CUDRequest("REAGENT", methods::POST, "", data);
+	njson get = rdbClient.GetRequest("REAGENT", data["reagent_sn"]);
+	EXPECT_NE(get["_error"], "404");
+	EXPECT_EQ(get["reag_name"], data["reag_name"]);
+	EXPECT_EQ(get["vol_cur"], data["vol_cur"]);
+
+	rdbClient.CUDRequest("REAGENT", methods::DEL, data["reagent_sn"], NULL);
+}
+
+TEST(ReagentTest, DeleteReagent) {
+	njson data;
+	data["reag_name"] = "test_reagentDBClient updated";
+	data["reagent_sn"] = "add_reag001";
+	data["size"] = "S";
+	data["log"] = "12345";
+	data["vol_cur"] = 5000;
+	data["vol"] = 3000;
+	data["sequence"] = 0;
+	data["mfg_date"] = "2020-04-15";
+	data["exp_date"] = "2025-03-08";
+	data["date"] = "2020-12-30T21:49:05Z";
+	data["r_type"] = "AR";
+	data["factory"] = true;
+	data["catalog"] = "PA002";
+	data["autostainer_sn"] = "autostainer2";
+	data["in_use"] = false;
+
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	rdbClient.CUDRequest("REAGENT", methods::POST, "", data);
+	njson get = rdbClient.GetRequest("REAGENT", data["reagent_sn"]);
+	EXPECT_NE(get["_error"], "404");
+
+	rdbClient.CUDRequest("REAGENT", methods::DEL, data["reagent_sn"], NULL);
+	get = rdbClient.GetRequest("REAGENT", data["reagent_sn"]);
+	EXPECT_EQ(get["_error"], "404");
+}
+
+TEST(ReagentTest, UpdateReagent) {
+	njson data;
+	data["reag_name"] = "test_reagentDBClient updated";
+	data["reagent_sn"] = "REAG006";
+	data["size"] = "S";
+	data["log"] = "12345";
+	data["vol_cur"] = 5000;
+	data["vol"] = 3000;
+	data["sequence"] = 0;
+	data["mfg_date"] = "2020-04-15";
+	data["exp_date"] = "2025-03-08";
+	data["date"] = "2020-12-30T21:49:05Z";
+	data["r_type"] = "AR";
+	data["factory"] = true;
+	data["catalog"] = "PA002";
+	data["autostainer_sn"] = "autostainer2";
+	data["in_use"] = false;
+
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	rdbClient.CUDRequest("REAGENT", methods::PUT, data["reagent_sn"], data);
+	njson get = rdbClient.GetRequest("REAGENT", data["reagent_sn"]);
+	EXPECT_EQ(get["reag_name"], data["reag_name"]);
+	EXPECT_EQ(get["vol_cur"], data["vol_cur"]);
+	EXPECT_EQ(get["size"], data["size"]);
+	EXPECT_EQ(get["mfg_date"], data["mfg_date"]);
+	EXPECT_EQ(get["exp_date"], data["exp_date"]);
+	EXPECT_EQ(get["catalog"], data["catalog"]);
+
+	data["reag_name"] = "Test Reagent 6";
+	data["reagent_sn"] = "REAG006";
+	data["size"] = "M";
+	data["log"] = "1234";
+	data["vol_cur"] = 120;
+	data["vol"] = 3000;
+	data["sequence"] = 0;
+	data["mfg_date"] = "2019-10-02";
+	data["exp_date"] = "2020-12-31";
+	data["date"] = "2020-12-28T22:01:37Z";
+	data["r_type"] = "AR";
+	data["factory"] = true;
+	data["catalog"] = "PA003";
+	data["autostainer_sn"] = "autostainer2";
+	data["in_use"] = false;
+
+	rdbClient.CUDRequest("REAGENT", methods::PUT, data["reagent_sn"], NULL);
+}
+
+TEST(ReagentTest, UpdateReagentNonExistant) {
+	njson data;
+	data["reag_name"] = "test_reagentDBClient updated";
+	data["reagent_sn"] = "add_reag001";
+	data["size"] = "S";
+	data["log"] = "12345";
+	data["vol_cur"] = 5000;
+	data["vol"] = 3000;
+	data["sequence"] = 0;
+	data["mfg_date"] = "2020-04-15";
+	data["exp_date"] = "2025-03-08";
+	data["date"] = "2020-12-30T21:49:05Z";
+	data["r_type"] = "AR";
+	data["factory"] = true;
+	data["catalog"] = "PA002";
+	data["autostainer_sn"] = "autostainer2";
+	data["in_use"] = false;
+
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	rdbClient.CUDRequest("REAGENT", methods::PUT, data["reagent_sn"], data);
+	njson get = rdbClient.GetRequest("REAGENT", data["reagent_sn"]);
+	EXPECT_EQ(get["reag_name"], nullptr);
+	EXPECT_EQ(get["vol_cur"], nullptr);
+	EXPECT_EQ(get["size"], nullptr);
+	EXPECT_EQ(get["mfg_date"], nullptr);
+	EXPECT_EQ(get["exp_date"], nullptr);
+	EXPECT_EQ(get["catalog"], nullptr);
+	
+	rdbClient.CUDRequest("REAGENT", methods::DEL, data["reagent_sn"], NULL);
+}
+
+TEST(ReagentTest, GetReagent) {
+	std::string sn = "REAG005";
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson get = rdbClient.GetRequest("REAGENT", sn);
+
+	EXPECT_EQ(get["reag_name"], "Test Reagent 5");
+	EXPECT_EQ(get["vol_cur"], 100);
+	EXPECT_EQ(get["size"], "S");
+	EXPECT_EQ(get["mfg_date"], "2020-12-01");
+	EXPECT_EQ(get["exp_date"], "2030-12-01");
+	EXPECT_EQ(get["catalog"], "PA001");
+	EXPECT_EQ(get["r_type"], "AR");
+}
+
+TEST(ReagentTest, GetReagentList) {
+	ReagentDBClient rdbClient = ReagentDBClient(SERVER);
+	njson data = rdbClient.GetRequest("REAGENT", "");
+
+	// expecting all the reagents in fixture to return
+	njson fixture_data;
+	std::ifstream fixture(path_to_fixtures + "\\test_reagent.json");
+	fixture >> fixture_data;
+	fixture.close();
+
+	ASSERT_EQ(data.size(), fixture_data.size());
+
+	for (int i = 0; i < data.size(); i++) {
+		int ncnt = 0;
+		for (auto d : data) {
+			if (fixture_data[i]["fields"]["reagent_sn"] == d["reagent_sn"]) {
+				EXPECT_EQ(fixture_data[i]["fields"]["size"], d["size"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["reag_name"], d["reag_name"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["catalog"], d["catalog"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["log"], d["log"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["vol_cur"], d["vol_cur"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["vol"], d["vol"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["sequence"], d["sequence"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["exp_date"], d["exp_date"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["mfg_date"], d["mfg_date"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["r_type"], d["r_type"]);
+				EXPECT_EQ(fixture_data[i]["fields"]["factory"], d["factory"]);
+				data.erase(ncnt);
+				break;
+			}
+			ncnt++;
+		}
+	}
+}

@@ -1,0 +1,68 @@
+[
+	{
+	"model":"reagents.ReagentDelta",
+	"pk":"1",
+	"fields": {
+        "autostainer_sn": "autostainer2",
+        "reagent_sn": "add_delta_reag001",
+        "reag_name": "test_reagentDBClient Reagent 1",
+        "catalog": "PA002",
+        "size": "S",
+        "log": "1234",
+        "vol": 3000,
+        "vol_cur": 5000,
+        "sequence": 0,
+        "mfg_date": "2020-03-17",
+        "exp_date": "2022-03-19",
+		"date": "2020-10-28T16:24:00-08:00",
+        "factory": true,
+        "r_type": "AR",
+        "operation": "CREATE",
+        "executor": null
+		}
+    },
+	{
+	"model":"reagents.ReagentDelta",
+	"pk":"2",
+	"fields": {
+        "autostainer_sn": "autostainer2",
+        "reagent_sn": "add_delta_reag002",
+        "reag_name": "test_reagentDBClient Reagent 1",
+        "catalog": "PA002",
+        "size": "S",
+        "log": "1234",
+        "vol": 3000,
+        "vol_cur": 5000,
+        "sequence": 0,
+        "mfg_date": "2020-03-17",
+        "exp_date": "2022-03-19",
+        "date": "2021-01-11T13:49:05-08:00",
+        "factory": true,
+        "r_type": "AR",
+        "operation": "CREATE",
+        "executor": null
+		}
+    },
+	{
+	"model":"reagents.ReagentDelta",
+	"pk":"3",
+	"fields": {
+        "autostainer_sn": "autostainer2",
+        "reagent_sn": "add_delta_reag003",
+        "reag_name": "test_reagentDBClient Reagent 1",
+        "catalog": "PA002",
+        "size": "S",
+        "log": "1234",
+        "vol": 3000,
+        "vol_cur": 5000,
+        "sequence": 0,
+        "mfg_date": "2020-03-17",
+        "exp_date": "2022-03-19",
+        "date": "2020-12-29T13:49:05-08:00",
+        "factory": true,
+        "r_type": "AR",
+        "operation": "CREATE",
+        "executor": null
+		}
+    }
+]
