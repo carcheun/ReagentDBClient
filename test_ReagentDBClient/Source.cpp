@@ -2,8 +2,6 @@
 #include "ReagentDBClient.h"
 #include <Windows.h>
 #include <iostream>
-#include <future>         // std::async, std::future
-#include <thread> 
 
 std::string SERVER = "http://localhost:8000/";
 ReagentDBClient rdb = ReagentDBClient(SERVER);
