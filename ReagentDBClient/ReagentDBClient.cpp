@@ -16,6 +16,15 @@ ReagentDBClient::~ReagentDBClient() {
 
 }
 
+void ReagentDBClient::SetAuthorizationToken(std::string token) {
+	authorization_token = "Token " + token;
+	_token = token;
+}
+
+utf16string ReagentDBClient::GetAuthorizationToken() {
+	return utility::conversions::to_utf16string(_token);
+}
+
 std::string ReagentDBClient::ConvertClientDateToServerDateField(int date) {
 	// date format from client is YYMMDD
 	std::string ret;
@@ -125,10 +134,6 @@ std::string ReagentDBClient::ConvertClientTimeToServerTimeField(int time) {
 	return ret;
 }
 
-bool ReagentDBClient::keyExists(const njson& j, const std::string& key) {
-	return j.find(key) != j.end();
-}
-
 uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> paths) {
 	uri_builder uri_b = uri_builder();
 	for (auto i : paths) {
@@ -137,14 +142,19 @@ uri_builder ReagentDBClient::build_uri_from_vector(std::vector<std::string> path
 	return uri_b;
 }
 
-njson ReagentDBClient::GetPAByAlias(std::wstring alias) {
-	njson ret;
+json::value ReagentDBClient::GetPAByAlias(std::wstring alias) {
+	json::value ret;
 	uri_builder uriPath = paPath;
 	uriPath.append_path(U("alias/"));
 	uriPath.append_query(U("alias"), alias);
+
+	http_request request;
+	request.set_method(methods::GET);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(uriPath.to_string());
 		
 	auto getJson = pplx::create_task([&]() {
-		return http_client(SERVER).request(methods::GET, uriPath.to_string());
+		return http_client(SERVER).request(request);
 	})
 	.then([](http_response response) {
 		if (response.status_code() != 200) {
@@ -153,7 +163,7 @@ njson ReagentDBClient::GetPAByAlias(std::wstring alias) {
 		return response.extract_json();
 	})
 	.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
+		ret = jsonObject;
 		return;
 	});
 
@@ -163,15 +173,14 @@ njson ReagentDBClient::GetPAByAlias(std::wstring alias) {
 		return ret;
 	}
 	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()}
-		};
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
 		return err;
 	}
 }
 
-njson ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
-	njson ret;
+json::value ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
+	json::value ret;
 	uri_builder uriPath;
 	if (endpoint.compare("REAGENT") == 0) {
 		// set the path for reagents
@@ -182,22 +191,25 @@ njson ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
 		uriPath = paPath;
 	}
 	else {
-		ret["_error"] = "Invalid endpoint!";
+		ret[U("_error")] = json::value::string(U("Invalid endpoint!"));
 		return ret;
 	}
-
 	uriPath.append_path(conversions::to_utf16string(PID));
 
+	http_request request;
+	request.set_method(methods::GET);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(uriPath.to_string() + U("/"));
+
 	auto requestJson = http_client(SERVER)
-		.request(methods::GET, uriPath.to_string() + U("/"))
-		.then([](http_response response) {
+		.request(request).then([](http_response response) {
 		if (response.status_code() != 200) {
 			throw std::runtime_error(std::to_string(response.status_code()));
 		}
 		return response.extract_json();
 	})
 	.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
+		ret = jsonObject;
 		return;
 	});
 	try {
@@ -205,85 +217,16 @@ njson ReagentDBClient::GetRequest(std::string endpoint, std::string PID) {
 		return ret;
 	}
 	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
 		return err;
 	}
 
 	return -1;
 }
 
-njson ReagentDBClient::CUDRequest(std::string endpoint, method mtd, std::string PID, njson data) {
-	// Read the endpoint: REAGENT OR PA
-	njson ret;
-	uri_builder uriPath;
-	if (endpoint.compare("REAGENT") == 0) {
-		// set the path for reagents
-		uriPath = reagentPath;
-	}
-	else if (endpoint.compare("PA") == 0) {
-		// set paths for PA
-		uriPath = paPath;
-	}
-	else {
-		ret["_error"] = "Invalid endpoint!";
-		return ret;
-	}
-
-	// get or delete, we will need a PID
-	auto req = pplx::create_task([&]() {
-		if (!PID.empty())
-			uriPath.append_path(conversions::to_utf16string(PID));
-
-		if (mtd == methods::PUT || mtd == methods::POST) {
-			return http_client(SERVER)
-				.request(mtd, uriPath.to_string() + U("/"),
-					conversions::to_utf16string(data.dump()), U("application/json"));
-		}
-		else if (mtd == methods::GET || mtd == methods::DEL) {
-				return http_client(SERVER)
-					.request(mtd, uriPath.to_string() + U("/"));
-		}
-	}).then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() == 201 || response.status_code() == 200) {
-			return response.extract_json();
-		}
-		else if (response.status_code() == 204) {
-			// no content, in order for consistant parsing we'll just add some content
-			// before passing it on to our program
-			json::value output;
-			output[L"content"] = json::value::string(utility::conversions::to_utf16string("No Content"));
-			response.set_body(output);
-			return response.extract_json();
-		}
-		else {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-		// Convert the response body to JSON object.
-	}).then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-
-	try {
-		req.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-	return ret;
-}
-
-
-
-json::value ReagentDBClient::JCUDRequest(std::string endpoint, method mtd, std::string PID, json::value data) {
+json::value ReagentDBClient::CUDRequest(std::string endpoint, method mtd, 
+	std::string PID, json::value data) {
 	// Read the endpoint: REAGENT OR PA
 	json::value ret;
 	uri_builder uriPath;
@@ -300,20 +243,25 @@ json::value ReagentDBClient::JCUDRequest(std::string endpoint, method mtd, std::
 		return ret;
 	}
 
+	http_request request;
+	request.set_method(mtd);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+
 	// get or delete, we will need a PID
 	auto req = pplx::create_task([&]() {
 		if (!PID.empty())
 			uriPath.append_path(conversions::to_utf16string(PID));
 
 		if (mtd == methods::PUT || mtd == methods::POST) {
-			return http_client(SERVER)
-				.request(mtd, uriPath.to_string() + U("/"), data.serialize(), 
-					U("application/json"));
+			request.set_request_uri(uriPath.to_string() + U("/"));
+			request.set_body(data.serialize(),
+				U("application/json"));
 		}
 		else if (mtd == methods::GET || mtd == methods::DEL) {
-			return http_client(SERVER)
-				.request(mtd, uriPath.to_string() + U("/"));
+			request.set_request_uri(uriPath.to_string() + U("/"));
 		}
+
+		return http_client(SERVER).request(request);
 	}).then([](http_response response) {
 		// Check the status code.
 		if (response.status_code() == 201 || response.status_code() == 200) {
@@ -348,15 +296,18 @@ json::value ReagentDBClient::JCUDRequest(std::string endpoint, method mtd, std::
 	}
 }
 
-
-
-json::value ReagentDBClient::JAddReagent(json::value jsonObj) {
+json::value ReagentDBClient::AddReagent(json::value jsonObj) {
 	json::value ret;
+
+	http_request request;
+	request.set_method(methods::POST);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(reagentPath.to_string() + U("/"));
+	request.set_body(jsonObj.serialize(), U("application/json"));
+
 	auto postJson = pplx::create_task([&]() {
 		return http_client(SERVER)
-			.request(methods::POST,
-				reagentPath.to_string() + U("/"),
-				jsonObj.serialize(), U("application/json"));
+			.request(request);
 	})
 	.then([](http_response response) {
 		// Check the status code.
@@ -380,61 +331,29 @@ json::value ReagentDBClient::JAddReagent(json::value jsonObj) {
 	}
 }
 
-// add a reagent
-njson ReagentDBClient::AddReagent(njson reagent) {
-	njson ret;
-	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST,
-				reagentPath.to_string() + U("/"),
-				conversions::to_utf16string(reagent.dump()), U("application/json"));
-	})
-	.then([](http_response response) {
-		if (response.status_code() != 201) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-		return response.extract_json();
-	})
-	.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		postJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-	return 1;
-}
-
-// decrease volume
-njson ReagentDBClient::DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol) {
+json::value ReagentDBClient::DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol) {
 	uri_builder newReagentPath = reagentPath;
 	newReagentPath.append_path(conversions::to_utf16string(reagentSN));
 	newReagentPath.append_path(conversions::to_utf16string("decrease-volume"));
-	njson ret;
-	njson req;
-	req["dec_vol"] = decVol;
-	req["autostainer_sn"] = serialNo;
+	json::value ret;
+	json::value req;
+	req[U("dec_vol")] = decVol;
+	req[U("autostainer_sn")] = json::value::string(conversions::to_utf16string(serialNo));
 
-	auto requestJson = http_client(SERVER)
-		.request(methods::PUT, newReagentPath.to_string() + U("/"), conversions::to_utf16string(req.dump()), U("application/json"))
-		.then([](http_response response) {
+	http_request request;
+	request.set_method(methods::PUT);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(newReagentPath.to_string() + U("/"));
+	request.set_body(req.serialize(), U("application/json"));
+
+	auto requestJson = http_client(SERVER).request(request).then([](http_response response) {
 		if (response.status_code() != 201) {
 			throw std::runtime_error(std::to_string(response.status_code()));
 		}
 		return response.extract_json();
 	})
-	// Get the data field and serialize, then use nlohmann/json to parse
-	.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
+		.then([&](json::value jsonObject) {
+		ret = jsonObject;
 		return;
 	});
 
@@ -444,220 +363,25 @@ njson ReagentDBClient::DecreaseReagentVolume(std::string reagentSN, std::string 
 		return ret;
 	}
 	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
 		return err;
 	}
 }
 
-// delete
-njson ReagentDBClient::DeleteReagent(CString reagentSN) {
-	uri_builder newReagentPath = reagentPath;
-	newReagentPath.append_path((LPCTSTR)reagentSN);
-	int status_code = -1;
-
-	auto requestJson = http_client(SERVER)
-		.request(methods::DEL, newReagentPath.to_string() + U("/"))
-
-		// Get the response.
-		.then([&](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 204) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		status_code = response.status_code();
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		requestJson.wait();
-		njson ret;
-		ret["status_code"] = status_code;
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
-		return err;
-	}
-}
-
-
-njson ReagentDBClient::GetPAList() {
-	njson ret;
-	auto requestJson = http_client(SERVER)
-		.request(methods::GET, paPath.to_string() + U("/"))
-		// Get the response.
-		.then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 200) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		return response.extract_json();
-	})
-		// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		requestJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
-		return err;
-	}
-
-	return -1;
-}
-
-njson ReagentDBClient::GetPAList(std::string catalog) {
-	// append ID to new uri
-	njson ret;
-
-	uri_builder newPaListPath = paPath;
-	newPaListPath.append_path(conversions::to_utf16string(catalog));
-
-	auto requestJson = http_client(SERVER)
-		.request(methods::GET, newPaListPath.to_string() + U("/"))
-
-		// Get the response.
-		.then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 200) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		return response.extract_json();
-	})
-		// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		requestJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		//printf("Error exception:%s\n", e.what());
-		njson err = {
-			{"_error", e.what()},
-		};
-		return err;
-	}
-
-	return -1;
-}
-
-njson ReagentDBClient::AddPA(njson jsonObj) {
-	njson ret;
-
-	// use & to use the above variables, or pass them in one at a time
-	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST,
-				paPath.to_string() + U("/"),
-				conversions::to_utf16string(jsonObj.dump()), U("application/json"));
-	})
-		// Get the response.
-		.then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 201) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		return response.extract_json();
-	})		// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		postJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		//printf("Error exception:%s\n", e.what());
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-
-	return 1;
-}
-
-njson ReagentDBClient::PutPA(njson jsonObj, std::string catalog) {
-	// find the catalog value
-	uri_builder newPaListPath = paPath;
-	njson ret;
-	newPaListPath.append_path(conversions::to_utf16string(catalog));
-
-	// use & to use the above variables, or pass them in one at a time
-	auto putJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::PUT,
-				newPaListPath.to_string() + U("/"),
-				conversions::to_utf16string(jsonObj.dump()), U("application/json"));
-	})
-		// Get the response.
-		.then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 200) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		return response.extract_json();
-	})	// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	try {
-		putJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-
-	return -1;
-}
-
-
-json::value ReagentDBClient::JPostGeneric(std::vector<std::string> paths, json::value jsonObj) {
+json::value ReagentDBClient::PostGeneric(std::vector<std::string> paths, json::value jsonObj) {
 	uri_builder uri_build = build_uri_from_vector(paths);
 	json::value ret;
 
+	http_request request;
+	request.set_method(methods::POST);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(uri_build.to_string() + U("/"));
+	request.set_body(jsonObj.serialize(), U("application/json"));
+
 	// use & to use the above variables, or pass them in one at a time
 	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST, uri_build.to_string() + U("/"), 
-				jsonObj.serialize(), U("application/json"));
+		return http_client(SERVER).request(request);
 	})
 		.then([](http_response response) {
 		// Check the status code.
@@ -695,106 +419,26 @@ json::value ReagentDBClient::JPostGeneric(std::vector<std::string> paths, json::
 	return ret;
 }
 
-njson ReagentDBClient::PostGeneric(std::vector<std::string> paths, njson data) {
-	uri_builder uri_build = build_uri_from_vector(paths);
-	njson ret;
-
-	// use & to use the above variables, or pass them in one at a time
-	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST,
-				uri_build.to_string() + U("/"),
-				conversions::to_utf16string(data.dump()), U("application/json"));
-	})
-		// Get the response.
-		.then([](http_response response) {
-		// Check the status code.
-		if (response.status_code() == 201 || response.status_code()== 200) {
-			return response.extract_json();
-		}
-		else if (response.status_code() == 204) {
-			// no content, in order for consistant parsing we'll just add some content
-			// before passing it on to our program
-			json::value output;
-			output[L"content"] = json::value::string(utility::conversions::to_utf16string("No Content"));
-			response.set_body(output);
-			return response.extract_json();
-		}
-		else {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-	})		// Get the data field and serialize, then use nlohmann/json to parse
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		postJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		//printf("Error exception:%s\n", e.what());
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-
-	return 1;
-}
-
-njson ReagentDBClient::GetGeneric(std::vector<std::string> paths, 
-	const std::map<std::string, std::string>& urlParams) {
-	uri_builder uri_build = build_uri_from_vector(paths);
-	njson ret;
-	for (auto const& x : urlParams) {
-		uri_build.append_query(conversions::to_utf16string(x.first),
-			conversions::to_utf16string(x.second));
-	}
-
-	auto requestJson = http_client(SERVER)
-		.request(methods::GET, urlParams.empty() ? uri_build.to_string() + U("/") : uri_build.to_string())
-		.then([](http_response response) {
-		if (response.status_code() != 200) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-		return response.extract_json();
-	})
-		.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		return;
-	});
-
-	try {
-		requestJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
-		return err;
-	}
-
-	return ret;
-}
-
 // GET generic
-json::value ReagentDBClient::JGetGeneric(std::vector<std::string> paths,
-	const std::map<std::string, std::string>& urlParams) {
+json::value ReagentDBClient::GetGeneric(std::vector<std::string> paths, const std::map<std::string, std::string>& urlParams) {
 	uri_builder uri_build = build_uri_from_vector(paths);
 	json::value ret;
+
 	for (auto const& x : urlParams) {
 		uri_build.append_query(conversions::to_utf16string(x.first),
 			web::uri::encode_data_string(conversions::to_utf16string(x.second)));
 	}
+
+	http_request request(methods::GET);
+	if (!authorization_token.empty()) {
+		request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	}
+
+	request.set_request_uri(urlParams.empty() ?
+		uri_build.to_string() + U("/") : uri_build.to_string());
+
 	auto requestJson = http_client(SERVER)
-		.request(methods::GET, urlParams.empty() ? 
-			uri_build.to_string() + U("/") : uri_build.to_string())
+		.request(request)
 		.then([](http_response response) {
 		if (response.status_code() != 200) {
 			throw std::runtime_error(std::to_string(response.status_code()));
@@ -817,52 +461,18 @@ json::value ReagentDBClient::JGetGeneric(std::vector<std::string> paths,
 	}
 }
 
-
-njson ReagentDBClient::DeletePA(std::string catalog) {
-	uri_builder newPaListPath = paPath;
-	newPaListPath.append_path(conversions::to_utf16string(catalog));
-	int status_code = -1;
-
-	auto requestJson = http_client(SERVER)
-		.request(methods::DEL, newPaListPath.to_string() + U("/"))
-
-		// Get the response.
-		.then([&](http_response response) {
-		// Check the status code.
-		if (response.status_code() != 204) {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-
-		// Convert the response body to JSON object.
-		status_code = response.status_code();
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		requestJson.wait();
-		njson ret;
-		ret["status_code"] = status_code;
-		return ret;
-	}
-	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
-		return err;
-	}
-}
-
-njson ReagentDBClient::DeleteMultiplePA(njson data) {
+json::value ReagentDBClient::DeleteMultiplePA(json::value data) {
 	uri_builder newPaListPath = paPath;
 	newPaListPath.append_path(conversions::to_utf16string("delete"));
 	int status_code = -1;
 
-	auto requestJson = http_client(SERVER)
-		.request(methods::DEL, newPaListPath.to_string() + U("/"), 
-			conversions::to_utf16string(data.dump()), U("application/json"))
+	http_request request;
+	request.set_method(methods::DEL);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(newPaListPath.to_string() + U("/"));
+	request.set_body(data.serialize(), U("application/json"));
 
-	// Get the response.
+	auto requestJson = http_client(SERVER).request(request)
 	.then([&](http_response response) {
 		// Check the status code.
 		if (response.status_code() != 204) {
@@ -877,14 +487,13 @@ njson ReagentDBClient::DeleteMultiplePA(njson data) {
 	// Wait for the concurrent tasks to finish.
 	try {
 		requestJson.wait();
-		njson ret;
-		ret["status_code"] = status_code;
+		json::value ret;
+		ret[U("status_code")] = status_code;
 		return ret;
 	}
 	catch (const std::exception &e) {
-		njson err = {
-			{"_error", e.what()},
-		};
+		json::value err;
+		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
 		return err;
 	}
 }
@@ -892,6 +501,7 @@ njson ReagentDBClient::DeleteMultiplePA(njson data) {
 json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string endpoint) {
 	json::value ret;
 	uri_builder newPaListPath;
+
 	if (endpoint.compare("PA") == 0) {
 		newPaListPath = paPath;
 	}
@@ -902,11 +512,14 @@ json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string 
 	newPaListPath.append_path(conversions::to_utf16string("client_to_database_sync"));
 	int status_code = -1;
 
+	http_request request;
+	request.set_method(methods::POST);
+	request.headers().add(U("Authorization"), utility::conversions::utf8_to_utf16(authorization_token));
+	request.set_request_uri(newPaListPath.to_string() + U("/"));
+	request.set_body(data.serialize(), U("application/json"));
+
 	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST,
-				newPaListPath.to_string() + U("/"),
-				data.serialize(), U("application/json"));
+		return http_client(SERVER).request(request);
 	})
 		.then([&](http_response response) {
 		status_code = response.status_code();
@@ -959,80 +572,3 @@ json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string 
 		return err;
 	}
 }
-
-njson ReagentDBClient::ClientToDatabaseSync(njson data, std::string endpoint) {
-	// send my data to the URL
-	// await response.
-	// parse response
-	njson ret;
-	uri_builder newPaListPath;
-	if (endpoint.compare("PA") == 0) {
-		newPaListPath = paPath;
-	}
-	else if (endpoint.compare("REAGENT") == 0) {
-		newPaListPath = reagentPath;
-	}
-
-	newPaListPath.append_path(conversions::to_utf16string("client_to_database_sync"));
-	int status_code = -1;
-
-	auto postJson = pplx::create_task([&]() {
-		return http_client(SERVER)
-			.request(methods::POST,
-				newPaListPath.to_string() + U("/"),
-				conversions::to_utf16string(data.dump()), U("application/json"));
-	})
-	.then([&](http_response response) {
-		status_code = response.status_code();
-		if (status_code == 200 || status_code == 201) {
-			// 200 & 201 & 204 status codes are always 'good', and client
-			// can safely delete their delta log entry and will not require
-			// further modifications
-			return response.extract_json();
-		}
-		else if (status_code == 204) {
-			json::value output;
-			output[L"data"] = json::value::string(utility::conversions::to_utf16string("no content"));
-			response.set_body(output);
-			return response.extract_json();
-		}
-		else if (status_code == 400) {
-			// bad request, client delta log has some request error
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-		else if (status_code == 404) {
-			// not found, if the action was to update something, this implies that
-			// at some point the server has deleted the item. Client should remove
-			// item from local DB
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-		else if (status_code == 409) {
-			// conflict, generally means that item already existed when creating,
-			// or that an update attempt is older than the current time stamp.
-			// client will recieve the server copy and update themselves accordingly ?
-			return response.extract_json();
-		}
-		else {
-			throw std::runtime_error(std::to_string(response.status_code()));
-		}
-	})
-	.then([&](json::value jsonObject) {
-		ret = njson::parse(jsonObject.serialize());
-		ret["status_code"] = status_code;
-		return;
-	});
-
-	// Wait for the concurrent tasks to finish.
-	try {
-		postJson.wait();
-		return ret;
-	}
-	catch (const std::exception &e) {
-		//printf("Error exception:%s\n", e.what());
-		njson err = {
-			{"_error", e.what()}
-		};
-		return err;
-	}
-}
-

@@ -37,43 +37,22 @@ public:
 	ReagentDBClient(std::string server);
 	virtual ~ReagentDBClient();
 
-	// general helper functions
-	bool keyExists(const njson& j, const std::string& key);
+	// set authorization token in request header
+	void SetAuthorizationToken(std::string token);
+	utf16string GetAuthorizationToken();
 
 	// Generic GET/POST functions
-	//
-	njson GetGeneric(std::vector<std::string> paths,
+	json::value GetRequest(std::string endpoint, std::string PID);
+	json::value PostGeneric(std::vector<std::string> paths, json::value jsonObj);
+	json::value GetGeneric(std::vector<std::string> paths,
 		const std::map<std::string, std::string>& urlParams = map_type());
-	//
-	njson PostGeneric(std::vector<std::string> paths, njson data);
-	
-	njson GetRequest(std::string endpoint, std::string PID);
-	//
-	njson CUDRequest(std::string endpoint, method mtd, std::string PID, njson data);
 
-	// PA api functions
-	njson GetPAList();
-	njson GetPAList(std::string catalog);
-	njson GetPAByAlias(std::wstring alias);
-	njson AddPA(njson jsonObj);
-	njson PutPA(njson jsonObj, std::string catalog);
-	njson DeletePA(std::string);
-	njson DeleteMultiplePA(njson jsonObj);
-	njson ClientToDatabaseSync(njson jsonObj, std::string endpoint);
-
-	json::value JAddReagent(json::value jsonObj);
-	json::value JPostGeneric(std::vector<std::string> paths, json::value jsonObj);
-	json::value JGetGeneric(std::vector<std::string> paths,
-		const std::map<std::string, std::string>& urlParams = map_type());
-	json::value JCUDRequest(std::string endpoint, method mtd, std::string PID, json::value data);
+	json::value GetPAByAlias(std::wstring alias);
+	json::value DeleteMultiplePA(json::value data);
+	json::value AddReagent(json::value jsonObj);
+	json::value CUDRequest(std::string endpoint, method mtd, std::string PID, json::value data);
 	json::value ClientToDatabaseSync(json::value data, std::string endpoint);
-
-
-
-	// TODO: reagents
-	njson AddReagent(njson reagent);
-	njson DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol);
-	njson DeleteReagent(CString reagentSN);
+	json::value DecreaseReagentVolume(std::string reagentSN, std::string serialNo, int decVol);
 
 	// helper functions
 	void GenerateServerCompatiableTimestamp(char *buf, int sizeBuf);
@@ -82,15 +61,13 @@ public:
 	int ConvertServerDateFieldToClientDate(std::string date);
 	void ConvertServerDateTimeFieldToClientDateTime(int &date, int &time, std::string dateTime);
 
-
 private:
 	typedef std::map<std::string, std::string> map_type;
-
 	utf16string SERVER;
-
+	std::string authorization_token;
+	std::string _token;
 	uri_builder autostainerListPath;
 	uri_builder paPath;
 	uri_builder reagentPath;
-
 	uri_builder build_uri_from_vector(std::vector<std::string> paths);
 };
