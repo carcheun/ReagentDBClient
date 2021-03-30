@@ -21,15 +21,14 @@
 #include "cpprest/filestream.h"
 #include "cpprest/cpprest/uri.h"
 #include "cpprest/cpprest/json.h"
+#include "cpprest/ws_client.h"
 #include <string>
-#include <atlstr.h>
-#include "nlohmann/json.hpp"
 
 using namespace utility;
 using namespace web;
 using namespace web::http;
 using namespace web::http::client;
-using njson = nlohmann::json;
+using namespace web::websockets::client;
 
 class REAGENTDBCLIENT_API ReagentDBClient
 {
@@ -60,6 +59,8 @@ public:
 	std::string ConvertClientTimeToServerTimeField(int time);
 	int ConvertServerDateFieldToClientDate(std::string date);
 	void ConvertServerDateTimeFieldToClientDateTime(int &date, int &time, std::string dateTime);
+
+	void TestClient();
 
 private:
 	typedef std::map<std::string, std::string> map_type;

@@ -498,6 +498,10 @@ json::value ReagentDBClient::DeleteMultiplePA(json::value data) {
 	}
 }
 
+void ReagentDBClient::TestClient() {
+	websocket_callback_client call_client;
+}
+
 json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string endpoint) {
 	json::value ret;
 	uri_builder newPaListPath;
