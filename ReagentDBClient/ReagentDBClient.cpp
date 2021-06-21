@@ -397,7 +397,8 @@ json::value ReagentDBClient::PostGeneric(std::vector<std::string> paths, json::v
 			return response.extract_json();
 		}
 		else {
-			throw std::runtime_error(std::to_string(response.status_code()));
+			std::string reason = utility::conversions::to_utf8string(response.to_string());
+			throw std::runtime_error(std::to_string(response.status_code()) + ":" + reason);
 		}
 
 		// Convert the response body to JSON object.
@@ -413,7 +414,9 @@ json::value ReagentDBClient::PostGeneric(std::vector<std::string> paths, json::v
 	}
 	catch (const std::exception &e) {
 		json::value err;
-		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		std::string code = e.what();
+		err[U("_res")] = json::value::string(conversions::to_utf16string(code.substr(4, code.length() - 4)));
+		err[U("_error")] = json::value::string(conversions::to_utf16string(code.substr(0, 3)));
 		return err;
 	}
 	return ret;
@@ -441,7 +444,8 @@ json::value ReagentDBClient::GetGeneric(std::vector<std::string> paths, const st
 		.request(request)
 		.then([](http_response response) {
 		if (response.status_code() != 200) {
-			throw std::runtime_error(std::to_string(response.status_code()));
+			std::string reason = utility::conversions::to_utf8string(response.to_string());
+			throw std::runtime_error(std::to_string(response.status_code()) + ":" + reason);
 		}
 		return response.extract_json();
 	})
@@ -456,7 +460,9 @@ json::value ReagentDBClient::GetGeneric(std::vector<std::string> paths, const st
 	}
 	catch (const std::exception &e) {
 		json::value err;
-		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		std::string code = e.what();
+		err[U("_res")] = json::value::string(conversions::to_utf16string(code.substr(4, code.length() - 4)));
+		err[U("_error")] = json::value::string(conversions::to_utf16string(code.substr(0, 3)));
 		return err;
 	}
 }
