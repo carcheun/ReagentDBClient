@@ -16,12 +16,12 @@
 #endif
 
 #include <iostream>
-#include "cpprest/http_client.h"
-#include "cpprest/http_listener.h"
-#include "cpprest/filestream.h"
-#include "cpprest/cpprest/uri.h"
-#include "cpprest/cpprest/json.h"
-#include "cpprest/ws_client.h"
+#include <cpprest/http_client.h>
+#include <cpprest/http_listener.h>
+#include <cpprest/filestream.h>
+#include <cpprest/uri.h>
+#include <cpprest/json.h>
+#include <cpprest/ws_client.h>
 #include <string>
 
 using namespace utility;

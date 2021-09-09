@@ -101,6 +101,7 @@ std::string ReagentDBClient::ConvertClientTimeToServerTimeField(int time) {
 		return "00:00:00";
 	}
 	std::string ret = std::to_string(time);
+	// 3300 = 00:33:00
 
 	// check length
 	if (ret.length() < 2) {
@@ -117,7 +118,7 @@ std::string ReagentDBClient::ConvertClientTimeToServerTimeField(int time) {
 	}
 	else if (ret.length() < 5) {
 		// 1250
-		ret = ret + "00";
+		ret = "00" + ret;
 	}
 	else if (ret.length() < 6) {
 		ret = "0" + ret;
@@ -547,13 +548,17 @@ json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string 
 		}
 		else if (status_code == 400) {
 			// bad request, client delta log has some request error
-			throw std::runtime_error(std::to_string(response.status_code()));
+			std::string reason = utility::conversions::to_utf8string(response.to_string());
+			throw std::runtime_error(std::to_string(response.status_code()) + ":" + reason);
+			//throw std::runtime_error(std::to_string(response.status_code()));
 		}
 		else if (status_code == 404) {
 			// not found, if the action was to update something, this implies that
 			// at some point the server has deleted the item. Client should remove
 			// item from local DB
-			throw std::runtime_error(std::to_string(response.status_code()));
+			std::string reason = utility::conversions::to_utf8string(response.to_string());
+			throw std::runtime_error(std::to_string(response.status_code()) + ":" + reason);
+			//throw std::runtime_error(std::to_string(response.status_code()));
 		}
 		else if (status_code == 409) {
 			// conflict, generally means that item already existed when creating,
@@ -562,7 +567,9 @@ json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string 
 			return response.extract_json();
 		}
 		else {
-			throw std::runtime_error(std::to_string(response.status_code()));
+			std::string reason = utility::conversions::to_utf8string(response.to_string());
+			throw std::runtime_error(std::to_string(response.status_code()) + ":" + reason);
+			//throw std::runtime_error(std::to_string(response.status_code()));
 		}
 	})
 		.then([&](json::value jsonObject) {
@@ -578,7 +585,9 @@ json::value ReagentDBClient::ClientToDatabaseSync(json::value data, std::string 
 	}
 	catch (const std::exception &e) {
 		json::value err;
-		err[U("_error")] = json::value::string(conversions::to_utf16string(e.what()));
+		std::string code = e.what();
+		err[U("_res")] = json::value::string(conversions::to_utf16string(code.substr(4, code.length() - 4)));
+		err[U("_error")] = json::value::string(conversions::to_utf16string(code.substr(0, 3)));
 		return err;
 	}
 }
